@@ -80,7 +80,9 @@ enum GolemioClient {
             struct Times: Decodable { var scheduled: String?; var predicted: String? }
             struct Route: Decodable { var short_name: String? }
             struct Trip: Decodable { var id: String?; var headsign: String?; var is_canceled: Bool? }
+            struct Delay: Decodable { var is_available: Bool? }
             var departure_timestamp: Times?
+            var delay: Delay?
             var route: Route?
             var trip: Trip?
         }
@@ -110,7 +112,10 @@ enum GolemioClient {
 
         return (decoded.departures ?? []).compactMap { d in
             guard let sched = d.departure_timestamp?.scheduled.flatMap(parseDate) else { return nil }
-            let pred = d.departure_timestamp?.predicted.flatMap(parseDate)
+            // Golemio fills `predicted` with the timetable when the tram has no GPS yet (e.g. still at Podbaba);
+            // only trust it when the delay is actually measured.
+            let live = d.delay?.is_available ?? true
+            let pred = live ? d.departure_timestamp?.predicted.flatMap(parseDate) : nil
             let line = d.route?.short_name ?? "?"
             return Departure(
                 id: (d.trip?.id ?? line) + "-\(sched.timeIntervalSince1970)",
