@@ -247,7 +247,7 @@
       const act = new Date(sched.getTime() + (delay || 0) * 60000);
       const hm = d => d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
       const cls = delay == null ? "none" : delay >= 2 ? "late" : "ok";
-      return `<div class="row"><div class="badge">${line}</div><div class="dest">${dest}</div>
+      return `<div class="row"><div class="badge"${line === "8" ? ' style="background:#296bdb"' : ""}>${line}</div><div class="dest">${dest}</div>
         <div class="num sched ${delay ? "late" : ""}">${hm(sched)}</div>
         <div class="num act ${cls}">${live ? hm(act) : "–"}</div>
         <div class="num cd">${inMin + (delay || 0)} min</div></div>`;

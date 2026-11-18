@@ -79,7 +79,10 @@ struct SettingsView: View {
                     }
                     ForEach(snapshot.departures.prefix(6)) { d in
                         HStack {
-                            Text(d.line).font(.body.weight(.bold).monospacedDigit()).frame(width: 28, alignment: .leading)
+                            Text(d.line).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                                .frame(width: 22, height: 17)
+                                .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(TramArt.lineColor(d.line)))
+                                .padding(.trailing, 4)
                             Text(d.headsign).lineLimit(1)
                             Spacer()
                             Text(Fmt.time.string(from: d.scheduled)).foregroundStyle(.secondary).monospacedDigit()

@@ -13,6 +13,14 @@ enum TramArt {
     static let red = Color(red: 0.85, green: 0.15, blue: 0.18)
     static let window = Color(red: 0.23, green: 0.24, blue: 0.27)
     static let cab = Color(red: 0.16, green: 0.17, blue: 0.19)
+    /// Badge colour per line so 8 and 18 are easy to tell apart (PID itself uses red for every tram line).
+    static func lineColor(_ line: String) -> Color {
+        switch line {
+        case "8": return Color(red: 0.16, green: 0.42, blue: 0.86)   // blue
+        default: return red
+        }
+    }
+
     static func bodyColor(_ dark: Bool) -> Color { dark ? Color(white: 0.90) : Color(white: 0.95) }
 
     /// One articulated section, centred on the origin. k = 0 is the front cab.

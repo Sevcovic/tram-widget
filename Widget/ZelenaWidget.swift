@@ -59,7 +59,7 @@ struct LineBadge: View {
             .font(.system(size: 11, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: 22, height: 17)
-            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(red: 0.85, green: 0.12, blue: 0.16)))
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(TramArt.lineColor(line)))
     }
 }
 
