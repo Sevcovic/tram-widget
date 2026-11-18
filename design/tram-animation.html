@@ -10,18 +10,21 @@
     --widget: #f6f6f8; --rail: rgba(60,60,67,.22); --row: #1d1d1f;
     --tram-body: #f2f3f5; --tram-window: #3b3e44; --tram-red: #d9252e; --tram-cab: #2a2c30;
     --green: #1f9d55; --orange: #e5850b; --chip: rgba(60,60,67,.08);
+    --shelter-roof: #3a3d42; --post: #c9ccd1; --glass: rgba(150,180,195,.28); --glass-edge: rgba(60,70,80,.35);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --page: #0f0f11; --ink: #f5f5f7; --muted: #98989d;
       --widget: #1e1e21; --rail: rgba(235,235,245,.20); --row: #f5f5f7;
       --tram-body: #e6e7ea; --chip: rgba(235,235,245,.08);
+      --shelter-roof: #8e9299; --post: #e6e7ea; --glass: rgba(150,190,210,.22); --glass-edge: rgba(200,215,225,.4);
     }
   }
   :root[data-theme="dark"] {
     --page: #0f0f11; --ink: #f5f5f7; --muted: #98989d;
     --widget: #1e1e21; --rail: rgba(235,235,245,.20); --row: #f5f5f7;
     --tram-body: #e6e7ea; --chip: rgba(235,235,245,.08);
+    --shelter-roof: #8e9299; --post: #e6e7ea; --glass: rgba(150,190,210,.22); --glass-edge: rgba(200,215,225,.4);
   }
   * { box-sizing: border-box; }
   body {
@@ -131,9 +134,21 @@
   const P = rail.getTotalLength();
   const STOP_D = STOP_X - (i + R);                      // distance of the stop along the path
 
-  // Stop marker: small pole + sign on the outer side of the rail.
-  stopG.innerHTML = `<line x1="${STOP_X+8}" y1="${i}" x2="${STOP_X+8}" y2="${i-11}" stroke="var(--muted)" stroke-width=".8"/>
-    <rect x="${STOP_X+5.5}" y="${i-13.5}" width="5" height="4" rx="1" fill="var(--tram-red)"/>`;
+  // Zelená shelter: flat slatted canopy on two white posts, glass back panel, bench, info display.
+  const S = STOP_X, roofY = i - 13.2, slats = Array.from({ length: 9 }, (_, k) =>
+    `<line x1="${S-17+k*4.2}" y1="${roofY+1.5}" x2="${S-15.4+k*4.2}" y2="${roofY+2.6}" stroke="var(--shelter-roof)" stroke-width=".45"/>`).join("");
+  stopG.innerHTML = `
+    <rect x="${S-0.5}" y="${i-10.6}" width="11.5" height="10" fill="var(--glass)" stroke="var(--glass-edge)" stroke-width=".3"/>
+    <line x1="${S+2}" y1="${i-10.6}" x2="${S+2}" y2="${i-0.6}" stroke="var(--glass-edge)" stroke-width=".25"/>
+    <rect x="${S-3.6}" y="${i-7.4}" width="2.6" height="1.8" rx=".3" fill="#2b3440"/>
+    <rect x="${S-3.3}" y="${i-7.1}" width="2" height="1.2" fill="#7fb4d9" opacity=".8"/>
+    <rect x="${S-10}" y="${i-3.1}" width="10" height=".8" rx=".3" fill="var(--shelter-roof)"/>
+    <line x1="${S-9}" y1="${i-2.3}" x2="${S-9}" y2="${i-0.4}" stroke="var(--shelter-roof)" stroke-width=".5"/>
+    <line x1="${S-1}" y1="${i-2.3}" x2="${S-1}" y2="${i-0.4}" stroke="var(--shelter-roof)" stroke-width=".5"/>
+    <line x1="${S-13}" y1="${roofY+1}" x2="${S-13}" y2="${i-0.3}" stroke="var(--post)" stroke-width=".9"/>
+    <line x1="${S+12.5}" y1="${roofY+1}" x2="${S+12.5}" y2="${i-0.3}" stroke="var(--post)" stroke-width=".9"/>
+    <rect x="${S-18}" y="${roofY}" width="36" height="1.5" rx=".4" fill="var(--shelter-roof)"/>
+    ${slats}`;
 
   // One tram section, drawn along +x, body above the rail (negative y = outward).
   function section(k) {
@@ -188,7 +203,7 @@
     });
   }
 
-  const parkedD = STOP_D + 3;                           // nose stops just before the stop sign
+  const parkedD = STOP_D + 2 * (SEG + GAP) - GAP / 2;  // tram centred on the shelter
   const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const easeOut = t => 1 - Math.pow(1 - t, 3);
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
