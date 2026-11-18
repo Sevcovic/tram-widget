@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tram-widget-site",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./public" },
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "tram-widget.petrbuild.app", "custom_domain": true }
+  ]
+}

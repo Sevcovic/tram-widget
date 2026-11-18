@@ -5,3 +5,5 @@ xcuserdata/
 tools/data-raw/
 site/node_modules/
 .wrangler/
+site/public/TramWidget.js
+site/public/tram-widget-source.zip
