@@ -31,6 +31,8 @@ struct Snapshot: Codable {
     var fetchedAt: Date
     var departures: [Departure]
     var error: String?
+    /// Raw timestamps + delay of the first departures, for checking what Golemio actually sends.
+    var debug: String?
 
     static let empty = Snapshot(fetchedAt: .distantPast, departures: [], error: nil)
 }
@@ -80,13 +82,27 @@ enum GolemioClient {
             struct Times: Decodable { var scheduled: String?; var predicted: String? }
             struct Route: Decodable { var short_name: String? }
             struct Trip: Decodable { var id: String?; var headsign: String?; var is_canceled: Bool? }
-            struct Delay: Decodable { var is_available: Bool? }
+            struct LastStop: Decodable { var id: String?; var name: String? }
             var departure_timestamp: Times?
-            var delay: Delay?
+            var last_stop: LastStop?
             var route: Route?
             var trip: Trip?
         }
         var departures: [Dep]?
+    }
+
+    static var lastDebug: String?
+
+    private static func debugSummary(_ data: Data) -> String? {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let deps = obj["departures"] as? [[String: Any]] else { return nil }
+        return deps.prefix(4).map { d in
+            let line = (d["route"] as? [String: Any])?["short_name"] ?? "?"
+            let dep = d["departure_timestamp"] ?? "-"
+            let delay = d["delay"] ?? "-"
+            let pos = (d["last_stop"] as? [String: Any])?["name"] ?? "-"
+            return "\(line): departure=\(dep) delay=\(delay) last_stop=\(pos)"
+        }.joined(separator: "\n")
     }
 
     static func fetch(apiKey: String? = SharedStore.apiKey) async throws -> [Departure] {
@@ -106,15 +122,16 @@ enum GolemioClient {
         let (data, resp) = try await URLSession.shared.data(for: req)
         if let http = resp as? HTTPURLResponse, http.statusCode != 200 { throw GolemioError.http(http.statusCode) }
 
+        lastDebug = debugSummary(data)
         let decoded: Response
         do { decoded = try JSONDecoder().decode(Response.self, from: data) }
         catch { throw GolemioError.decoding(error.localizedDescription) }
 
         return (decoded.departures ?? []).compactMap { d in
             guard let sched = d.departure_timestamp?.scheduled.flatMap(parseDate) else { return nil }
-            // Golemio fills `predicted` with the timetable when the tram has no GPS yet (e.g. still at Podbaba);
-            // only trust it when the delay is actually measured.
-            let live = d.delay?.is_available ?? true
+            // Golemio fills `predicted` with the timetable (and says delay.is_available = true) even for trips
+            // that haven't started yet. `last_stop` is only set once the vehicle reports a position, so use that.
+            let live = d.last_stop?.id != nil || d.last_stop?.name != nil
             let pred = live ? d.departure_timestamp?.predicted.flatMap(parseDate) : nil
             let line = d.route?.short_name ?? "?"
             return Departure(
@@ -134,7 +151,7 @@ enum GolemioClient {
     static func refresh() async -> Snapshot {
         do {
             let deps = try await fetch()
-            let snap = Snapshot(fetchedAt: .now, departures: deps, error: nil)
+            let snap = Snapshot(fetchedAt: .now, departures: deps, error: nil, debug: lastDebug)
             SharedStore.save(snap)
             return snap
         } catch {

@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tram Widget Prototype</title>
+<style>
+  :root {
+    --page: #e9eaee; --ink: #1d1d1f; --muted: #6e6e73;
+    --widget: #f6f6f8; --rail: rgba(60,60,67,.22); --row: #1d1d1f;
+    --tram-body: #f2f3f5; --tram-window: #3b3e44; --tram-red: #d9252e; --tram-cab: #2a2c30;
+    --green: #1f9d55; --orange: #e5850b; --chip: rgba(60,60,67,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0f0f11; --ink: #f5f5f7; --muted: #98989d;
+      --widget: #1e1e21; --rail: rgba(235,235,245,.20); --row: #f5f5f7;
+      --tram-body: #e6e7ea; --chip: rgba(235,235,245,.08);
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #0f0f11; --ink: #f5f5f7; --muted: #98989d;
+    --widget: #1e1e21; --rail: rgba(235,235,245,.20); --row: #f5f5f7;
+    --tram-body: #e6e7ea; --chip: rgba(235,235,245,.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--page); color: var(--ink);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center; padding: 40px 16px 60px; gap: 28px;
+  }
+  h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 4px 0 0; text-align: center; max-width: 520px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .seg { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 3px; }
+  .seg button {
+    border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--widget); box-shadow: 0 1px 3px rgba(0,0,0,.12); font-weight: 600; }
+  .stage { width: 100%; display: flex; justify-content: center; }
+  .scaler { transform-origin: top center; }
+  /* macOS medium widget ≈ 344 × 160 pt */
+  .widget {
+    position: relative; width: 344px; height: 160px; border-radius: 22px; overflow: hidden;
+    background: var(--widget);
+    box-shadow: 0 10px 30px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.08);
+  }
+  .widget svg.track { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .content { position: absolute; inset: 0; padding: 22px 24px 18px; display: flex; flex-direction: column; gap: 5px; }
+  .head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 3px; }
+  .head b { font-size: 13px; font-weight: 600; }
+  .head .dir { font-size: 11px; color: var(--muted); }
+  .head .age { margin-left: auto; font-size: 10px; color: var(--muted); display: flex; gap: 4px; align-items: center; cursor: pointer; background: none; border: 0; padding: 0; font-family: inherit; }
+  .head .age svg { width: 10px; height: 10px; }
+  .row { display: grid; grid-template-columns: 26px 1fr 36px 36px 44px; gap: 8px; align-items: center; font-size: 12px; color: var(--row); }
+  .badge { width: 26px; height: 20px; border-radius: 6px; background: var(--tram-red); color: #fff; font: 700 12px/20px ui-rounded, -apple-system, system-ui; text-align: center; }
+  .dest { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sched { color: var(--muted); }
+  .sched.late { text-decoration: line-through; }
+  .act { font-weight: 600; }
+  .act.ok { color: var(--green); } .act.late { color: var(--orange); } .act.none { color: var(--muted); font-weight: 400; }
+  .cd { font-weight: 600; }
+  .note { max-width: 560px; color: var(--muted); font-size: 13px; background: var(--chip); border-radius: 14px; padding: 14px 16px; }
+  .note b { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div style="text-align:center">
+    <h1>Tramvaj ve widgetu</h1>
+    <p class="sub">Při každém obnovení přijede tramvaj po vnitřní lince a zastaví u Zelené.</p>
+  </div>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Varianta">
+      <button data-variant="A" aria-pressed="true">A · celý okruh</button>
+      <button data-variant="B" aria-pressed="false">B · horní hrana</button>
+    </div>
+    <div class="seg" role="group" aria-label="Vzhled">
+      <button data-theme-btn="light" aria-pressed="false">Světlý</button>
+      <button data-theme-btn="dark" aria-pressed="false">Tmavý</button>
+    </div>
+    <div class="seg"><button id="replay" aria-pressed="false">↻ Obnovit</button></div>
+  </div>
+
+  <div class="stage"><div class="scaler" id="scaler">
+    <div class="widget" id="widget">
+      <svg class="track" id="track" viewBox="0 0 344 160" aria-hidden="true">
+        <defs><clipPath id="clip"><rect width="344" height="160" rx="22"/></clipPath></defs>
+        <g clip-path="url(#clip)">
+          <path id="rail" fill="none" stroke="var(--rail)" stroke-width="1"/>
+          <g id="stop"></g>
+          <g id="tram"></g>
+        </g>
+      </svg>
+      <div class="content">
+        <div class="head">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="var(--tram-red)"><path d="M8 2h8v2h-3v2h3a4 4 0 0 1 4 4v7a3 3 0 0 1-2 2.8L19 22h-2.2l-1.5-2H8.7l-1.5 2H5l1-2.2A3 3 0 0 1 4 17v-7a4 4 0 0 1 4-4h3V4H8zm-1 7v4h10V9zm1.5 6.5a1.5 1.5 0 1 0 0 .01zm7 0a1.5 1.5 0 1 0 0 .01z"/></svg>
+          <b>Zelená</b><span class="dir">do centra</span>
+          <button class="age" id="ageBtn"><span id="age">právě teď</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>
+        </div>
+        <div id="rows"></div>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="note">
+    <b>Co z toho jde do skutečného widgetu:</b> jen varianta <b>B</b>. WidgetKit umí animovat jen přechod mezi dvěma stavy
+    (posun, prolnutí, max. ~2 s), takže tramvaj může přijet rovně po horní hraně a zaparkovat u zastávky.
+    Jízda kolem zaoblených rohů (A) potřebuje animaci snímek po snímku, a tu widget nespustí. A by šla jen v okně aplikace.
+  </div>
+
+<script>
+(() => {
+  const W = 344, H = 160, INSET = 15, R = 9;           // rail runs 15 pt inside the edge; tram rides outside it
+  const SEG = 15, GAP = 1.2, N = 4;                     // 4 articulated sections
+  const STOP_X = 104;                                 // the "Zelená" stop on the top rail
+  const svgNS = "http://www.w3.org/2000/svg";
+  const rail = document.getElementById("rail");
+  const tramG = document.getElementById("tram");
+  const stopG = document.getElementById("stop");
+  let variant = "A";
+
+  // Rounded-rect rail, clockwise from the top-left after the corner.
+  const i = INSET, d =
+    `M${i+R},${i} H${W-i-R} A${R},${R} 0 0 1 ${W-i},${i+R} V${H-i-R} A${R},${R} 0 0 1 ${W-i-R},${H-i} ` +
+    `H${i+R} A${R},${R} 0 0 1 ${i},${H-i-R} V${i+R} A${R},${R} 0 0 1 ${i+R},${i} Z`;
+  rail.setAttribute("d", d);
+  const P = rail.getTotalLength();
+  const STOP_D = STOP_X - (i + R);                      // distance of the stop along the path
+
+  // Stop marker: small pole + sign on the outer side of the rail.
+  stopG.innerHTML = `<line x1="${STOP_X+8}" y1="${i}" x2="${STOP_X+8}" y2="${i-11}" stroke="var(--muted)" stroke-width=".8"/>
+    <rect x="${STOP_X+5.5}" y="${i-13.5}" width="5" height="4" rx="1" fill="var(--tram-red)"/>`;
+
+  // One tram section, drawn along +x, body above the rail (negative y = outward).
+  function section(k) {
+    const g = document.createElementNS(svgNS, "g");
+    const L = SEG, h = 10, top = -h - 1;
+    const front = k === 0, rear = k === N - 1;
+    const redTop = k % 2 === 1;                         // alternate red roof / red skirt like the PID livery
+    const x0 = -L / 2;
+    // body outline: rounded nose on front & rear cabs
+    const nose = 4;
+    const body = front
+      ? `M${x0},${top} H${x0+L-nose} Q${x0+L},${top} ${x0+L},${top+nose+1} V-1 H${x0} Z`
+      : rear
+      ? `M${x0+nose},${top} H${x0+L} V-1 H${x0} V${top+nose+1} Q${x0},${top} ${x0+nose},${top} Z`
+      : `M${x0},${top} H${x0+L} V-1 H${x0} Z`;
+    g.innerHTML = `
+      <clipPath id="c${k}"><path d="${body}"/></clipPath>
+      <g clip-path="url(#c${k})">
+        <path d="${body}" fill="var(--tram-body)"/>
+        <rect x="${x0}" y="${top}" width="${L}" height="2.2" fill="${redTop ? "var(--tram-red)" : "var(--tram-body)"}"/>
+        <rect x="${x0}" y="${top+3}" width="${L}" height="3.6" fill="var(--tram-window)"/>
+        <rect x="${x0}" y="-3.6" width="${L}" height="2.6" fill="${redTop ? "var(--tram-body)" : "var(--tram-red)"}"/>
+        ${front ? `<rect x="${x0+L-5}" y="${top}" width="5" height="${h-2}" fill="var(--tram-cab)"/>
+                   <circle cx="${x0+L-1.4}" cy="-4.4" r=".7" fill="#fff7d6"/>` : ""}
+        ${rear ? `<rect x="${x0}" y="${top}" width="4" height="${h-3}" fill="var(--tram-cab)"/>` : ""}
+        <rect x="${x0+L/2-1.6}" y="${top+3.2}" width="3.2" height="7.4" fill="rgba(0,0,0,.25)"/>
+      </g>
+      <path d="${body}" fill="none" stroke="rgba(0,0,0,.18)" stroke-width=".35"/>
+      ${k === 1 ? `<path d="M${x0+4},${top} l2,-2.4 l2.6,0 M${x0+4.6},${top-2.4} h4.4" stroke="var(--muted)" stroke-width=".55" fill="none" stroke-linecap="round"/>` : ""}
+      <rect x="${x0+1}" y="-1" width="${L-2}" height=".9" rx=".45" fill="rgba(0,0,0,.35)"/>`;
+    return g;
+  }
+  const sections = Array.from({ length: N }, (_, k) => { const s = section(k); tramG.appendChild(s); return s; });
+
+  const mod = (a, n) => ((a % n) + n) % n;
+  function place(frontD, opacity = 1) {
+    sections.forEach((s, k) => {
+      const c = frontD - k * (SEG + GAP) - SEG / 2;
+      const a = rail.getPointAtLength(mod(c - 1, P)), b = rail.getPointAtLength(mod(c + 1, P));
+      const p = rail.getPointAtLength(mod(c, P));
+      const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      s.setAttribute("transform", `translate(${p.x},${p.y}) rotate(${ang})`);
+      s.style.opacity = opacity;
+    });
+  }
+  // Variant B: straight move along the top rail (what a WidgetKit transition can do).
+  function placeStraight(frontX) {
+    sections.forEach((s, k) => {
+      const cx = frontX - k * (SEG + GAP) - SEG / 2;
+      s.setAttribute("transform", `translate(${cx},${i})`);
+      s.style.opacity = 1;
+    });
+  }
+
+  const parkedD = STOP_D + 3;                           // nose stops just before the stop sign
+  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let raf;
+
+  function play() {
+    cancelAnimationFrame(raf);
+    refreshRows();
+    if (reduce) { variant === "A" ? place(parkedD) : placeStraight(parkedD + i + R); return; }
+    const t0 = performance.now();
+    if (variant === "A") {
+      const dur = 2800, from = parkedD - P * 0.85;       // appears at the bottom-left, laps to the stop
+      const step = now => {
+        const t = Math.min(1, (now - t0) / dur);
+        place(from + (parkedD - from) * easeInOut(t), Math.min(1, t / 0.08));
+        if (t < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    } else {
+      const dur = 1400, endX = parkedD + i + R, fromX = -10;
+      const step = now => {
+        const t = Math.min(1, (now - t0) / dur);
+        placeStraight(fromX + (endX - fromX) * easeOut(t));
+        if (t < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }
+  }
+
+  // Mock departures so the refresh feels real.
+  const base = [["18","Vozovna Pankrác"],["8","Starý Hloubětín"],["18","Vozovna Pankrác"],["8","Starý Hloubětín"]];
+  let tick = 0;
+  function refreshRows() {
+    tick++;
+    const now = new Date();
+    const rows = base.map(([line, dest], k) => {
+      const inMin = 2 + k * 6 + (tick % 3);
+      const sched = new Date(now.getTime() + inMin * 60000);
+      const live = k < 2;
+      const delay = live ? (k === 0 ? (tick % 2 ? 2 : 0) : 0) : null;
+      const act = new Date(sched.getTime() + (delay || 0) * 60000);
+      const hm = d => d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+      const cls = delay == null ? "none" : delay >= 2 ? "late" : "ok";
+      return `<div class="row"><div class="badge">${line}</div><div class="dest">${dest}</div>
+        <div class="num sched ${delay ? "late" : ""}">${hm(sched)}</div>
+        <div class="num act ${cls}">${live ? hm(act) : "–"}</div>
+        <div class="num cd">${inMin + (delay || 0)} min</div></div>`;
+    }).join("");
+    document.getElementById("rows").innerHTML = rows;
+    document.getElementById("age").textContent = "právě teď";
+  }
+
+  // Controls
+  document.querySelectorAll("[data-variant]").forEach(b => b.onclick = () => {
+    variant = b.dataset.variant;
+    document.querySelectorAll("[data-variant]").forEach(x => x.setAttribute("aria-pressed", x === b));
+    play();
+  });
+  document.querySelectorAll("[data-theme-btn]").forEach(b => b.onclick = () => {
+    document.documentElement.dataset.theme = b.dataset.themeBtn;
+    document.querySelectorAll("[data-theme-btn]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  });
+  document.getElementById("replay").onclick = play;
+  document.getElementById("ageBtn").onclick = play;
+
+  // Show the widget at 2× on wide screens so the tram is visible.
+  const scaler = document.getElementById("scaler");
+  const fit = () => {
+    const s = Math.max(1, Math.min(2, (innerWidth - 32) / 344));
+    scaler.style.transform = `scale(${s})`;
+    scaler.style.height = 160 * s + "px"; scaler.style.width = 344 + "px";
+  };
+  addEventListener("resize", fit); fit();
+  play();
+})();
+</script>
+</body>
+</html>

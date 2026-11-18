@@ -66,6 +66,13 @@ struct SettingsView: View {
                         .font(.callout)
                     }
                 }
+                if let debug = snapshot.debug {
+                    DisclosureGroup("Data z API (debug)") {
+                        Text(debug).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                }
             } else {
                 Text("Po uložení klíče se tu ukážou odjezdy.").font(.callout).foregroundStyle(.secondary)
             }
