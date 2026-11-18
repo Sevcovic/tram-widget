@@ -45,6 +45,29 @@ struct SettingsView: View {
             Divider()
 
             if let snapshot {
+                departures(snapshot)
+                    .padding(EdgeInsets(top: 24, leading: 24, bottom: 22, trailing: 24))
+                    .background(LapTrack(trigger: snapshot.fetchedAt))
+                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(.quaternary.opacity(0.5)))
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                if let debug = snapshot.debug {
+                    DisclosureGroup("Data z API (debug)") {
+                        Text(debug).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                }
+            } else {
+                Text("Po uložení klíče se tu ukážou odjezdy.").font(.callout).foregroundStyle(.secondary)
+            }
+
+            Text("Widget přidáš: pravý klik na plochu → Upravit widgety → hledej „Zelená“.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(20)
+    }
+
+    @ViewBuilder private func departures(_ snapshot: Snapshot) -> some View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Nejbližší odjezdy").font(.subheadline.weight(.medium))
@@ -66,21 +89,6 @@ struct SettingsView: View {
                         .font(.callout)
                     }
                 }
-                if let debug = snapshot.debug {
-                    DisclosureGroup("Data z API (debug)") {
-                        Text(debug).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .font(.caption)
-                }
-            } else {
-                Text("Po uložení klíče se tu ukážou odjezdy.").font(.callout).foregroundStyle(.secondary)
-            }
-
-            Text("Widget přidáš: pravý klik na plochu → Upravit widgety → hledej „Zelená“.")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-        .padding(20)
     }
 
     private func saveAndTest() async {

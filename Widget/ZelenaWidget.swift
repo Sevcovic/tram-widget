@@ -155,14 +155,48 @@ struct Message: View {
     }
 }
 
+/// Variant B: rail just inside the edge, Zelená shelter on the top rail, tram slides in along the top edge
+/// whenever a new fetch arrives (old tram leaves to the right). Straight moves only: that's all WidgetKit animates.
+struct TrackLayer: View {
+    let fetchedAt: Date
+    static let inset: CGFloat = 15
+    static let stopX: CGFloat = 104
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ContainerRelativeShape()
+                .inset(by: Self.inset)
+                .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
+            ShelterView()
+                .offset(x: Self.stopX - 18, y: Self.inset - TramArt.height)
+            TramStraightView()
+                .offset(x: Self.stopX - TramArt.length / 2, y: Self.inset - TramArt.height)
+                .id(fetchedAt)
+                .transition(.asymmetric(insertion: .offset(x: -(Self.stopX + 40)), removal: .offset(x: 380)))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .animation(.easeOut(duration: 1.6), value: fetchedAt)
+    }
+}
+
 struct ZelenaWidgetView: View {
     @Environment(\.widgetFamily) var family
     let entry: TramEntry
 
     var body: some View {
         let compact = family == .systemSmall
+        ZStack(alignment: .topLeading) {
+            if !compact && entry.hasKey { TrackLayer(fetchedAt: entry.snapshot.fetchedAt) }
+            list(compact: compact)
+                .padding(compact ? EdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14)
+                                 : EdgeInsets(top: 22, leading: 24, bottom: 18, trailing: 24))
+        }
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+
+    @ViewBuilder func list(compact: Bool) -> some View {
         let deps = Array(entry.upcoming.prefix(compact ? 2 : 4))
-        VStack(alignment: .leading, spacing: compact ? 8 : 6) {
+        VStack(alignment: .leading, spacing: compact ? 8 : 5) {
             Header(entry: entry, compact: compact)
             if !entry.hasKey {
                 Message(text: "Otevři aplikaci Zelená Tram a vlož API klíč.")
@@ -175,7 +209,6 @@ struct ZelenaWidgetView: View {
                 Spacer(minLength: 0)
             }
         }
-        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
 
@@ -188,6 +221,7 @@ struct ZelenaWidget: Widget {
         .configurationDisplayName("Zelená → centrum")
         .description("Tramvaje 8 a 18 ze Zelené: jízdní řád a skutečný odjezd.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()   // we pad ourselves so the rail can sit 15 pt from the edge
     }
 }
 
