@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scriptable Preview</title>
+<style>
+  :root { --page: #e9eaee; --ink: #1d1d1f; --muted: #6e6e73; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #111; --ink: #f5f5f7; --muted: #98989d; } }
+  :root[data-theme="dark"] { --page: #111; --ink: #f5f5f7; --muted: #98989d; }
+  body { margin: 0; padding: 24px 16px; background: var(--page); color: var(--ink); font: 13px -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; } p { color: var(--muted); margin: 0 0 16px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  figure { margin: 0; } figcaption { color: var(--muted); margin-top: 6px; }
+  canvas { border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,.15); display: block; }
+  .controls { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  pre { color: #c00; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Tram Widget · Scriptable preview</h1>
+<p>Runs scriptable/TramWidget.js against a stand-in for Scriptable's API (DrawContext → canvas) with sample departures.</p>
+<div class="controls">
+  <label>Next tram in <input id="mins" type="range" min="0" max="12" value="3"> <span id="minsv">3</span> min</label>
+  <label><input type="checkbox" id="err"> API error (cached data)</label>
+</div>
+<div class="grid" id="out"></div>
+<pre id="log"></pre>
+
+<script>
+// ───────── Scriptable API stand-in ─────────
+const SCALE = 3;
+class Size { constructor(w, h) { this.width = w; this.height = h; } }
+class Point { constructor(x, y) { this.x = x; this.y = y; } }
+class Rect { constructor(x, y, w, h) { this.x = x; this.y = y; this.width = w; this.height = h; } }
+class Color {
+  constructor(hex, alpha = 1) { this.hex = hex.replace("#", ""); this.alpha = alpha; }
+  get css() { const n = parseInt(this.hex, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${this.alpha})`; }
+}
+const mkFont = (w, family = "-apple-system, 'SF Pro Text', system-ui") => (s) => ({ css: `${w} ${s}px ${family}` });
+const Font = {
+  boldSystemFont: mkFont(700), semiboldSystemFont: mkFont(600), mediumSystemFont: mkFont(500), regularSystemFont: mkFont(400),
+  boldRoundedSystemFont: mkFont(700, "ui-rounded, -apple-system, system-ui"), semiboldRoundedSystemFont: mkFont(600, "ui-rounded, -apple-system, system-ui"),
+};
+class Path {
+  constructor() { this.ops = []; }
+  move(p) { this.ops.push(c => c.moveTo(p.x, p.y)); }
+  addLine(p) { this.ops.push(c => c.lineTo(p.x, p.y)); }
+  addQuadCurve(p, cp) { this.ops.push(c => c.quadraticCurveTo(cp.x, cp.y, p.x, p.y)); }
+  addRoundedRect(r, cw) { this.ops.push(c => c.roundRect(r.x, r.y, r.width, r.height, cw)); }
+  closeSubpath() { this.ops.push(c => c.closePath()); }
+}
+class DrawContext {
+  constructor() { this.canvas = document.createElement("canvas"); this.c = this.canvas.getContext("2d"); this.align = "left"; this.path = null; }
+  set size(s) { this.canvas.width = s.width; this.canvas.height = s.height; }
+  setFillColor(col) { this.c.fillStyle = col.css; }
+  setStrokeColor(col) { this.c.strokeStyle = col.css; }
+  setLineWidth(w) { this.c.lineWidth = w; }
+  fillRect(r) { this.c.fillRect(r.x, r.y, r.width, r.height); }
+  fillEllipse(r) { this.c.beginPath(); this.c.ellipse(r.x + r.width / 2, r.y + r.height / 2, r.width / 2, r.height / 2, 0, 0, Math.PI * 2); this.c.fill(); }
+  addPath(p) { this.c.beginPath(); p.ops.forEach(op => op(this.c)); }
+  fillPath() { this.c.fill(); }
+  strokePath() { this.c.stroke(); }
+  setFont(f) { this.c.font = f.css; }
+  setTextColor(col) { this.textColor = col.css; }
+  setTextAlignedLeft() { this.align = "left"; } setTextAlignedRight() { this.align = "right"; } setTextAlignedCenter() { this.align = "center"; }
+  drawTextInRect(t, r) {
+    const c = this.c; c.save(); c.beginPath(); c.rect(r.x, r.y, r.width, r.height); c.clip();
+    c.fillStyle = this.textColor; c.textBaseline = "top"; c.textAlign = this.align;
+    let s = t; // truncate with an ellipsis like UIKit
+    while (s.length > 1 && c.measureText(s).width > r.width) s = s.slice(0, -2) + "…";
+    const x = this.align === "right" ? r.x + r.width : this.align === "center" ? r.x + r.width / 2 : r.x;
+    c.fillText(s, x, r.y); c.restore();
+  }
+  getImage() { return this.canvas; }
+}
+class ListWidget { setPadding() {} }
+class DateFormatter { string(d) { return d.toLocaleTimeString("cs-CZ", { hour: "numeric", minute: "2-digit", timeZone: "Europe/Prague" }); } }
+const store = { "tramwidget.golemio": "dummy-key-for-preview" };
+const Keychain = { contains: k => k in store, get: k => store[k], set: (k, v) => { store[k] = v; } };
+const files = {};
+const FileManager = { local: () => ({
+  joinPath: (a, b) => a + "/" + b, cacheDirectory: () => "/cache",
+  fileExists: p => p in files, writeString: (p, s) => { files[p] = s; }, readString: p => files[p], modificationDate: () => new Date(),
+}) };
+let DARK = false, FAMILY = "medium", FAIL = false, NEXT = 3;
+const Device = {
+  language: () => "cs", screenScale: () => SCALE, screenSize: () => new Size(393, 852), isUsingDarkAppearance: () => DARK,
+};
+const iso = ms => new Date(ms).toISOString();
+function sampleResponse() {
+  const now = Date.now(), m = 60000;
+  const dep = (line, head, inMin, delay, live) => {
+    const s = now + inMin * m - (delay || 0) * m;
+    return { route: { short_name: line }, trip: { headsign: head, is_canceled: false, id: line + inMin },
+      departure_timestamp: { scheduled: iso(s), predicted: iso(s + (delay || 0) * m) },
+      last_stop: live ? { id: "U1", name: "Nádraží Podbaba" } : null };
+  };
+  return { stops: [{ stop_name: "Zelená", platform_code: "C" }], departures: [
+    dep("8", "Starý Hloubětín", NEXT, 2, true), dep("18", "Vozovna Pankrác", NEXT + 5, 0, true),
+    dep("8", "Starý Hloubětín", NEXT + 13, 0, false), dep("18", "Vozovna Pankrác", NEXT + 19, 0, false),
+    dep("8", "Starý Hloubětín", NEXT + 28, 0, false), dep("18", "Vozovna Pankrác", NEXT + 34, 0, false),
+    dep("8", "Starý Hloubětín", NEXT + 43, 0, false), dep("18", "Vozovna Pankrác", NEXT + 49, 0, false),
+  ] };
+}
+class Request {
+  constructor(url) { this.url = url; this.response = { statusCode: 200 }; }
+  async loadJSON() { if (FAIL) throw new Error("Chyba sítě"); return sampleResponse(); }
+}
+let lastWidget;
+const Script = { setWidget: w => { lastWidget = w; }, complete: () => {}, name: () => "Tram Widget" };
+let config, args;
+
+// ───────── Runner ─────────
+let SOURCE;
+async function runOnce(family, dark) {
+  FAMILY = family; DARK = dark;
+  config = { runsInWidget: true, widgetFamily: family };
+  args = { widgetParameter: "", queryParameters: {} };
+  await new (Object.getPrototypeOf(async function () {}).constructor)(SOURCE)();
+  return lastWidget.backgroundImage;
+}
+async function render() {
+  const out = document.getElementById("out"); out.innerHTML = "";
+  for (const dark of [false, true]) for (const fam of ["small", "medium", "large"]) {
+    const cv = await runOnce(fam, dark);
+    cv.style.width = cv.width / SCALE + "px"; cv.style.height = cv.height / SCALE + "px";
+    const fig = document.createElement("figure"); fig.appendChild(cv);
+    const cap = document.createElement("figcaption"); cap.textContent = `${fam} · ${dark ? "dark" : "light"} · ${cv.width}×${cv.height}px`;
+    fig.appendChild(cap); out.appendChild(fig);
+  }
+}
+(async () => {
+  try {
+    SOURCE = await (await fetch("TramWidget.js")).text();
+    await render();
+    // When the API fails, the script falls back to the cached response from the previous run.
+    document.getElementById("mins").oninput = e => { NEXT = +e.target.value; document.getElementById("minsv").textContent = NEXT; render(); };
+    document.getElementById("err").onchange = e => { FAIL = e.target.checked; render(); };
+  } catch (e) { document.getElementById("log").textContent = e.stack || e; }
+})();
+</script>
+</body>
+</html>
