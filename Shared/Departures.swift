@@ -1,12 +1,30 @@
 import Foundation
 
-/// Platform U906Z3P: Zelená, trams toward the city (8 → Starý Hloubětín, 18 → Vozovna Pankrác).
+// MARK: - Language (Czech if the Mac prefers Czech, English otherwise)
+
+let isCzech = Locale.preferredLanguages.first?.hasPrefix("cs") ?? false
+func L(_ cs: String, _ en: String) -> String { isCzech ? cs : en }
+
+// MARK: - Config
+
 enum Config {
-    static let stopId = "U906Z3P"
-    static let stopName = "Zelená"
-    static let directionLabel = "do centra"
-    static let appGroup = "M4UR3N7X2Y.zelenatram"
-    static let apiKeyDefaultsKey = "golemioApiKey"
+    /// App group shared by the app and the widget; set per team in project.yml (APP_GROUP_ID).
+    static let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String ?? "tramwidget"
+}
+
+/// The platform the user picked (one side of a stop, e.g. Zelená C toward the city).
+struct StopChoice: Codable, Hashable {
+    var id: String            // GTFS id used by Golemio, e.g. U906Z3P
+    var name: String          // Zelená
+    var platform: String      // C
+    var mode: String          // t tram, b bus, m metro, r train, y trolleybus, f ferry, l funicular
+    var lines: [String]       // ["8", "18"]
+    var directions: [String]  // ["Starý Hloubětín", "Vozovna Pankrác"]
+
+    static let zelena = StopChoice(id: "U906Z3P", name: "Zelená", platform: "C", mode: "t",
+                                   lines: ["8", "18"], directions: ["Starý Hloubětín", "Vozovna Pankrác"])
+
+    var title: String { platform.isEmpty ? name : "\(name) · \(platform)" }
 }
 
 struct Departure: Codable, Hashable, Identifiable {
@@ -17,10 +35,8 @@ struct Departure: Codable, Hashable, Identifiable {
     var predicted: Date?
     var isCanceled: Bool
 
-    /// Best known departure time.
     var actual: Date { predicted ?? scheduled }
     var hasLiveData: Bool { predicted != nil }
-    /// Delay in whole minutes (rounded), nil without live data.
     var delayMinutes: Int? {
         guard let predicted else { return nil }
         return Int((predicted.timeIntervalSince(scheduled) / 60).rounded())
@@ -31,7 +47,6 @@ struct Snapshot: Codable {
     var fetchedAt: Date
     var departures: [Departure]
     var error: String?
-    /// Raw timestamps + delay of the first departures, for checking what Golemio actually sends.
     var debug: String?
 
     static let empty = Snapshot(fetchedAt: .distantPast, departures: [], error: nil)
@@ -44,16 +59,32 @@ enum SharedStore {
 
     static var apiKey: String? {
         get {
-            let k = defaults.string(forKey: Config.apiKeyDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let k = defaults.string(forKey: "golemioApiKey")?.trimmingCharacters(in: .whitespacesAndNewlines)
             return (k?.isEmpty ?? true) ? nil : k
         }
-        set { defaults.set(newValue, forKey: Config.apiKeyDefaultsKey) }
+        set { defaults.set(newValue, forKey: "golemioApiKey") }
+    }
+
+    static var stop: StopChoice {
+        get {
+            guard let data = defaults.data(forKey: "stop"),
+                  let s = try? JSONDecoder().decode(StopChoice.self, from: data) else { return .zelena }
+            return s
+        }
+        set {
+            defaults.set(try? JSONEncoder().encode(newValue), forKey: "stop")
+            defaults.removeObject(forKey: "lastSnapshot")   // old departures belong to the old stop
+        }
+    }
+
+    /// Palette index per line; lines without a choice get one by their order at the stop.
+    static var lineColors: [String: Int] {
+        get { (defaults.dictionary(forKey: "lineColors") as? [String: Int]) ?? [:] }
+        set { defaults.set(newValue, forKey: "lineColors") }
     }
 
     static func save(_ snapshot: Snapshot) {
-        if let data = try? JSONEncoder().encode(snapshot) {
-            defaults.set(data, forKey: "lastSnapshot")
-        }
+        if let data = try? JSONEncoder().encode(snapshot) { defaults.set(data, forKey: "lastSnapshot") }
     }
 
     static func load() -> Snapshot? {
@@ -68,15 +99,16 @@ enum GolemioError: LocalizedError {
     case noKey, http(Int), decoding(String)
     var errorDescription: String? {
         switch self {
-        case .noKey: return "Chybí API klíč"
-        case .http(let code): return code == 401 || code == 403 ? "Neplatný API klíč" : "Chyba serveru (\(code))"
-        case .decoding(let msg): return "Nečitelná odpověď: \(msg)"
+        case .noKey: return L("Chybí API klíč", "API key missing")
+        case .http(let code):
+            return code == 401 || code == 403 ? L("Neplatný API klíč", "Invalid API key")
+                                              : L("Chyba serveru (\(code))", "Server error (\(code))")
+        case .decoding(let msg): return L("Nečitelná odpověď: ", "Unreadable response: ") + msg
         }
     }
 }
 
 enum GolemioClient {
-    // Response shape of GET /v2/pid/departureboards (only the fields we need; all optional to be tolerant).
     private struct Response: Decodable {
         struct Dep: Decodable {
             struct Times: Decodable { var scheduled: String?; var predicted: String? }
@@ -84,9 +116,9 @@ enum GolemioClient {
             struct Trip: Decodable { var id: String?; var headsign: String?; var is_canceled: Bool? }
             struct LastStop: Decodable { var id: String?; var name: String? }
             var departure_timestamp: Times?
-            var last_stop: LastStop?
             var route: Route?
             var trip: Trip?
+            var last_stop: LastStop?
         }
         var departures: [Dep]?
     }
@@ -105,11 +137,11 @@ enum GolemioClient {
         }.joined(separator: "\n")
     }
 
-    static func fetch(apiKey: String? = SharedStore.apiKey) async throws -> [Departure] {
+    static func fetch(stopId: String = SharedStore.stop.id, apiKey: String? = SharedStore.apiKey) async throws -> [Departure] {
         guard let apiKey else { throw GolemioError.noKey }
         var comps = URLComponents(string: "https://api.golemio.cz/v2/pid/departureboards")!
         comps.queryItems = [
-            .init(name: "ids", value: Config.stopId),
+            .init(name: "ids", value: stopId),
             .init(name: "minutesBefore", value: "0"),
             .init(name: "minutesAfter", value: "90"),
             .init(name: "limit", value: "12"),
@@ -130,7 +162,7 @@ enum GolemioClient {
         return (decoded.departures ?? []).compactMap { d in
             guard let sched = d.departure_timestamp?.scheduled.flatMap(parseDate) else { return nil }
             // Golemio fills `predicted` with the timetable (and says delay.is_available = true) even for trips
-            // that haven't started yet. `last_stop` is only set once the vehicle reports a position, so use that.
+            // that haven't started yet. `last_stop` is only set once the vehicle reports a position.
             let live = d.last_stop?.id != nil || d.last_stop?.name != nil
             let pred = live ? d.departure_timestamp?.predicted.flatMap(parseDate) : nil
             let line = d.route?.short_name ?? "?"
@@ -178,20 +210,19 @@ enum Fmt {
         let f = DateFormatter(); f.dateFormat = "H:mm"; f.timeZone = TimeZone(identifier: "Europe/Prague"); return f
     }()
 
-    /// "teď", "2 min", "14 min"
     static func countdown(to date: Date, from now: Date) -> String {
         let m = Int((date.timeIntervalSince(now) / 60).rounded(.down))
-        return m <= 0 ? "teď" : "\(m) min"
+        return m <= 0 ? L("teď", "now") : "\(m) min"
     }
 
     static func delay(_ minutes: Int?) -> String {
-        guard let minutes else { return "bez polohy" }
-        if minutes == 0 { return "včas" }
+        guard let minutes else { return L("bez polohy", "no GPS yet") }
+        if minutes == 0 { return L("včas", "on time") }
         return minutes > 0 ? "+\(minutes)" : "\(minutes)"
     }
 
     static func age(_ fetchedAt: Date, now: Date) -> String {
         let m = Int(now.timeIntervalSince(fetchedAt) / 60)
-        return m < 1 ? "právě teď" : "před \(m) min"
+        return m < 1 ? L("právě teď", "just now") : L("před \(m) min", "\(m) min ago")
     }
 }

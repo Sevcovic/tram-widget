@@ -2,3 +2,6 @@
 build/
 .DS_Store
 xcuserdata/
+tools/data-raw/
+site/node_modules/
+.wrangler/

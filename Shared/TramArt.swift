@@ -13,11 +13,34 @@ enum TramArt {
     static let red = Color(red: 0.85, green: 0.15, blue: 0.18)
     static let window = Color(red: 0.23, green: 0.24, blue: 0.27)
     static let cab = Color(red: 0.16, green: 0.17, blue: 0.19)
-    /// Badge colour per line so 8 and 18 are easy to tell apart (PID itself uses red for every tram line).
-    static func lineColor(_ line: String) -> Color {
-        switch line {
-        case "8": return Color(red: 0.16, green: 0.42, blue: 0.86)   // blue
-        default: return red
+    /// Badge palette. Lines at the chosen stop get colours by their order (first blue, second red, …)
+    /// unless the user picked one in the app, so lines like 8 and 18 never look the same.
+    static let palette: [Color] = [
+        Color(red: 0.16, green: 0.42, blue: 0.86),  // blue
+        red,
+        Color(red: 0.12, green: 0.62, blue: 0.36),  // green
+        Color(red: 0.91, green: 0.52, blue: 0.05),  // orange
+        Color(red: 0.55, green: 0.32, blue: 0.82),  // purple
+        Color(red: 0.05, green: 0.60, blue: 0.66),  // teal
+        Color(red: 0.36, green: 0.38, blue: 0.42),  // graphite
+    ]
+
+    static func colorIndex(_ line: String, stop: StopChoice = SharedStore.stop) -> Int {
+        if let i = SharedStore.lineColors[line] { return i % palette.count }
+        if let i = stop.lines.firstIndex(of: line) { return i % palette.count }
+        return palette.count - 1
+    }
+
+    static func lineColor(_ line: String) -> Color { palette[colorIndex(line)] }
+
+    static func modeSymbol(_ mode: String) -> String {
+        switch mode {
+        case "t": return "tram.fill"
+        case "m": return "tram.fill.tunnel"
+        case "r": return "train.side.front.car"
+        case "f": return "ferry.fill"
+        case "l": return "cablecar.fill"
+        default: return "bus.fill"
         }
     }
 

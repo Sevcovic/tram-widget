@@ -5,7 +5,7 @@ import AppIntents
 // MARK: - Refresh button intent
 
 struct RefreshIntent: AppIntent {
-    static var title: LocalizedStringResource = "Obnovit odjezdy"
+    static var title: LocalizedStringResource = "Refresh departures"
     func perform() async throws -> some IntentResult {
         await GolemioClient.refresh()
         return .result()   // WidgetKit reloads the timeline after an interactive intent
@@ -18,6 +18,7 @@ struct TramEntry: TimelineEntry {
     let date: Date
     let snapshot: Snapshot
     let hasKey: Bool
+    var stop: StopChoice = SharedStore.stop
 
     /// Departures still ahead at this entry's time (drop a tram ~30 s after it should have left).
     var upcoming: [Departure] {
@@ -77,9 +78,11 @@ struct Header: View {
     var compact = false
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "tram.fill").foregroundStyle(.red).font(.caption)
-            Text(Config.stopName).font(.system(size: 13, weight: .semibold))
-            if !compact { Text(Config.directionLabel).font(.caption).foregroundStyle(.secondary) }
+            Image(systemName: TramArt.modeSymbol(entry.stop.mode)).foregroundStyle(TramArt.red).font(.caption)
+            Text(entry.stop.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            if !compact && !entry.stop.platform.isEmpty {
+                Text(entry.stop.platform).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+            }
             Spacer(minLength: 4)
             Button(intent: RefreshIntent()) {
                 HStack(spacing: 3) {
@@ -179,7 +182,7 @@ struct TrackLayer: View {
     }
 }
 
-struct ZelenaWidgetView: View {
+struct TramWidgetView: View {
     @Environment(\.widgetFamily) var family
     let entry: TramEntry
 
@@ -199,9 +202,9 @@ struct ZelenaWidgetView: View {
         VStack(alignment: .leading, spacing: compact ? 8 : 5) {
             Header(entry: entry, compact: compact)
             if !entry.hasKey {
-                Message(text: "Otevři aplikaci Zelená Tram a vlož API klíč.")
+                Message(text: L("Otevři aplikaci Tram Widget a vlož API klíč.", "Open the Tram Widget app and add your API key."))
             } else if deps.isEmpty {
-                Message(text: entry.snapshot.error ?? "Žádné odjezdy v příštích 90 min")
+                Message(text: entry.snapshot.error ?? L("Žádné odjezdy v příštích 90 min", "No departures in the next 90 min"))
             } else {
                 ForEach(deps) { d in
                     if compact { CompactRow(d: d, now: entry.date) } else { DepartureRow(d: d, now: entry.date) }
@@ -213,13 +216,14 @@ struct ZelenaWidgetView: View {
 }
 
 @main
-struct ZelenaWidget: Widget {
+struct TramWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "ZelenaTram", provider: Provider()) { entry in
-            ZelenaWidgetView(entry: entry)
+        StaticConfiguration(kind: "TramWidget", provider: Provider()) { entry in
+            TramWidgetView(entry: entry)
         }
-        .configurationDisplayName("Zelená → centrum")
-        .description("Tramvaje 8 a 18 ze Zelené: jízdní řád a skutečný odjezd.")
+        .configurationDisplayName("Tram Widget")
+        .description(L("Odjezdy z tvé zastávky PID: jízdní řád a skutečný čas.",
+                       "Departures from your PID stop: timetable and real time."))
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()   // we pad ourselves so the rail can sit 15 pt from the edge
     }
@@ -239,6 +243,6 @@ extension TramEntry {
             dep("8", "Starý Hloubětín", 2, 1), dep("18", "Vozovna Pankrác", 5, 3),
             dep("8", "Starý Hloubětín", 10, 0), dep("18", "Vozovna Pankrác", 14, nil),
         ], error: nil)
-        return TramEntry(date: now, snapshot: snap, hasKey: true)
+        return TramEntry(date: now, snapshot: snap, hasKey: true, stop: .zelena)
     }
 }
