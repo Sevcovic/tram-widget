@@ -57,12 +57,12 @@
   .scene-wrap { position: relative; overflow: hidden; }
   #tramMove { animation: tram-run 16s cubic-bezier(.45,.05,.35,1) infinite; }
   @keyframes tram-run {
-    0% { transform: translateX(-1100px); }
+    0% { transform: translateX(-1900px); }
     32% { transform: translateX(0); }
     68% { transform: translateX(0); }
-    100% { transform: translateX(1500px); }
+    100% { transform: translateX(1200px); }
   }
-  .tail { transform-origin: 1118px 318px; animation: wag .5s ease-in-out infinite alternate; }
+  .tail { transform-box: fill-box; transform-origin: left bottom; animation: wag .5s ease-in-out infinite alternate; }
   @keyframes wag { from { transform: rotate(-14deg); } to { transform: rotate(18deg); } }
   .screen-glow { animation: glow 3s ease-in-out infinite alternate; }
   @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
@@ -77,7 +77,7 @@
   .widget .content { position: absolute; inset: 0; padding: 21px 24px 16px; font-size: 12px; }
   .w-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
   .w-head b { font-size: 13px; } .w-head span { color: var(--muted); font-size: 10px; }
-  .w-row { display: grid; grid-template-columns: 22px 1fr 36px 36px 56px; gap: 8px; align-items: center; height: 22px; }
+  .w-row { display: grid; grid-template-columns: 22px 1fr 36px 36px 62px; white-space: nowrap; gap: 8px; align-items: center; height: 22px; }
   .w-row .num { text-align: right; font-variant-numeric: tabular-nums; }
   .w-row .s { color: var(--muted); } .w-row .s.late { text-decoration: line-through; }
   .w-row .a { font-weight: 600; } .w-row .cd { font-weight: 600; }
@@ -205,12 +205,17 @@
       <rect x="430" y="114" width="5" height="160" fill="#c9ccd1"/><rect x="1060" y="114" width="5" height="160" fill="#c9ccd1"/>
       <!-- street lamp -->
       <rect x="560" y="140" width="4" height="134" fill="#d4d6da"/><path d="M562 142 q0-18 22-18 h8" stroke="#d4d6da" stroke-width="4" fill="none"/><rect x="586" y="120" width="18" height="6" rx="3" fill="#d4d6da"/>
-      <!-- pavement + platform -->
-      <rect x="0" y="264" width="1200" height="66" fill="var(--ground)"/>
-      <rect x="0" y="326" width="1200" height="54" fill="url(#cobbles)"/>
-      <rect x="0" y="322" width="1200" height="5" fill="#bdb9b2"/>
-      <path d="M0 356h1200M0 370h1200" stroke="#9a9a9a" stroke-width="2.5"/>
-
+      <!-- far track: the tram runs behind the platform -->
+      <rect x="0" y="264" width="1200" height="44" fill="url(#cobbles)"/>
+      <path d="M0 296h1200M0 304h1200" stroke="#9a9a9a" stroke-width="2.5"/>
+      <!-- platform in front, cobbles below -->
+      <rect x="0" y="306" width="1200" height="40" fill="var(--ground)"/>
+      <rect x="0" y="304" width="1200" height="4" fill="#bdb9b2"/>
+      <rect x="0" y="346" width="1200" height="34" fill="url(#cobbles)"/>
+      <!-- the tram (drawn from the same design as the widget, scaled up) -->
+      <g id="tramMove"><g id="tramArt" transform="translate(600 341) scale(6)"></g></g>
+      <!-- platform scene, people at 60 % so the tram is ~3× a person -->
+      <g transform="translate(900 340) scale(.6) translate(-900 -276)">
       <!-- shelter (like the real one at Zelená) -->
       <g transform="translate(720 0)">
         <rect x="140" y="178" width="120" height="86" fill="#cfe0e8" opacity=".55" stroke="#9fb3bd" stroke-width="1.5"/>
@@ -265,8 +270,6 @@
         <path d="M-12 318v8M-6 318v8" stroke="#a87444" stroke-width="4" stroke-linecap="round"/>
       </g>
 
-      <!-- the tram (drawn from the same design as the widget, scaled up) -->
-      <g id="tramMove"><g id="tramArt" transform="translate(600 341) scale(6)"></g></g>
       <!-- lady with a stroller in front, left -->
       <g transform="translate(300 0)" opacity=".98">
         <circle cx="0" cy="226" r="10" fill="#e3b38f"/><path d="M-10 224q1-15 12-14t9 12q-6-6-12-5t-9 7z" fill="#8a4b2f"/>
@@ -275,6 +278,7 @@
         <path d="M12 254l22 6" stroke="#3a3d42" stroke-width="3" stroke-linecap="round"/>
         <path d="M30 262h40a20 20 0 0 1-20 22h-20z" fill="#2f5d7a"/><path d="M30 262a22 22 0 0 1 36-14" fill="#3f6f8f"/>
         <circle cx="38" cy="300" r="6" fill="none" stroke="#3a3d42" stroke-width="3"/><circle cx="64" cy="300" r="6" fill="none" stroke="#3a3d42" stroke-width="3"/>
+      </g>
       </g>
     </svg>
   </div>
@@ -512,7 +516,7 @@ open TramWidget.xcodeproj</pre><p data-i18n="mac.s3p">V Xcode stiskni ▶︎. V 
   }
   // Hero tram: front at x=0 in its own coordinates; parked so it stands in front of the shelter.
   document.getElementById("tramArt").innerHTML = tramSVG();
-  document.getElementById("tramArt").setAttribute("transform", "translate(1030 341) scale(6)");
+  document.getElementById("tramArt").setAttribute("transform", "translate(1080 300) scale(12)");
 
   // ───── Demo widget (sample departures relative to now) ─────
   function hm(d) { return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
