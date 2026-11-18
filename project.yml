@@ -1,0 +1,56 @@
+name: ZelenaTram
+options:
+  bundleIdPrefix: com.petrsevcovic
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    DEVELOPMENT_TEAM: M4UR3N7X2Y
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  ZelenaTram:
+    type: application
+    platform: macOS
+    sources: [App, Shared]
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [$(TeamIdentifierPrefix)zelenatram]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Zelená Tram
+        LSApplicationCategoryType: public.app-category.travel
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.petrsevcovic.zelenatram
+        PRODUCT_NAME: ZelenaTram
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: ZelenaTramWidget
+  ZelenaTramWidget:
+    type: app-extension
+    platform: macOS
+    sources: [Widget, Shared]
+    entitlements:
+      path: Widget/Widget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [$(TeamIdentifierPrefix)zelenatram]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Zelená Tram
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.petrsevcovic.zelenatram.widget
+        GENERATE_INFOPLIST_FILE: YES
