@@ -33,7 +33,7 @@
 Přidej další widget Scriptable se stejným skriptem a do pole **Parameter** napiš ID nástupiště, např. `U906Z3P` (Zelená C). Parametr má přednost před uloženou zastávkou. ID najdeš ve výběru zastávek na [tram-widget.petrbuild.app](https://tram-widget.petrbuild.app).
 
 ### Dobré vědět
-- **Obnovování:** skript si říká o novou verzi každou minutu, ale kdy widget opravdu obnoví, rozhoduje iOS. Obvykle je to každých 5–15 minut. Kolik jsou data stará, vidíš vpravo nahoře („před 3 min“).
+- **Obnovování:** skript si říká o novou verzi každou minutu, ale kdy widget opravdu obnoví, rozhoduje iOS. Obvykle je to každých 5–15 minut. Vpravo nahoře vidíš, kdy se data naposledy načetla („načteno 22:32“). Widget je obrázek, který iOS překresluje jen občas, proto neodpočítává minuty; ukazuje časy odjezdů a zpoždění, které zůstávají pravdivé.
 - **„bez polohy“** znamená, že spoj ještě nevyjel nebo zatím neposlal polohu. Do té doby platí čas z jízdního řádu.
 - **⚠︎** znamená, že se data nepodařilo načíst. Widget ukazuje poslední známé odjezdy.
 - **Tmavý režim:** skript se řídí vzhledem iPhonu. Chceš-li ho napevno, změň na začátku skriptu `THEME` na `"light"` nebo `"dark"`.
@@ -69,7 +69,7 @@ Live departures from your Prague (PID) stop on your iPhone home screen: timetabl
 Add another Scriptable widget with the same script and type a platform ID into **Parameter**, e.g. `U906Z3P` (Zelená C). The parameter wins over the saved stop. Find IDs in the stop picker on [tram-widget.petrbuild.app](https://tram-widget.petrbuild.app).
 
 ### Good to know
-- **Refreshing:** the script asks for a refresh every minute, but iOS decides when it actually happens, usually every 5–15 minutes. The top right shows how old the data is ("3 min ago").
+- **Refreshing:** the script asks for a refresh every minute, but iOS decides when it actually happens, usually every 5–15 minutes. The top right shows when the data was loaded ("updated 22:32"). The widget is an image that iOS only redraws now and then, so it doesn't count down minutes; it shows departure times and delays, which stay true.
 - **"no GPS yet"** means the vehicle hasn't started or hasn't reported its position yet. Until then the timetable time applies.
 - **⚠︎** means loading failed. The widget shows the last known departures.
 - **Dark mode:** the script follows your iPhone's appearance. To fix it, change `THEME` at the top of the script to `"light"` or `"dark"`.

@@ -77,7 +77,7 @@
   .widget .content { position: absolute; inset: 0; padding: 21px 24px 16px; font-size: 12px; }
   .w-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
   .w-head b { font-size: 13px; } .w-head span { color: var(--muted); font-size: 10px; }
-  .w-row { display: grid; grid-template-columns: 22px 1fr 36px 36px 44px; gap: 8px; align-items: center; height: 22px; }
+  .w-row { display: grid; grid-template-columns: 22px 1fr 36px 36px 56px; gap: 8px; align-items: center; height: 22px; }
   .w-row .num { text-align: right; font-variant-numeric: tabular-nums; }
   .w-row .s { color: var(--muted); } .w-row .s.late { text-decoration: line-through; }
   .w-row .a { font-weight: 600; } .w-row .cd { font-weight: 600; }
@@ -351,7 +351,7 @@
       </ol>
     </div>
     <div>
-      <div class="note"><b data-i18n="ios.n1t">Obnovování:</b> <span data-i18n="ios.n1">skript si říká o novou verzi každou minutu, ale kdy widget opravdu obnoví, rozhoduje iOS. Obvykle je to každých 5–15 minut. Stáří dat vidíš vpravo nahoře.</span></div>
+      <div class="note"><b data-i18n="ios.n1t">Obnovování:</b> <span data-i18n="ios.n1">skript si říká o novou verzi každou minutu, ale kdy widget opravdu obnoví, rozhoduje iOS. Obvykle je to každých 5–15 minut. Vpravo nahoře vidíš, kdy se data načetla, a místo odpočtu minut ukazuje widget zpoždění, které nezastará.</span></div>
       <div class="note"><b data-i18n="ios.n2t">Klepnutí na widget</b> <span data-i18n="ios.n2">otevře Scriptable s čerstvým náhledem.</span></div>
       <div class="note"><b data-i18n="ios.n3t">Tmavý režim</b> <span data-i18n="ios.n3">se řídí iPhonem. Napevno ho nastavíš změnou THEME na začátku skriptu.</span></div>
     </div>
@@ -388,7 +388,7 @@ open TramWidget.xcodeproj</pre><p data-i18n="mac.s3p">V Xcode stiskni ▶︎. V 
   <div class="wrap">
     <p class="kicker">FAQ</p>
     <h2 data-i18n="faq.title">Časté otázky</h2>
-    <details><summary data-i18n="faq.q1">Proč se widget neobnovuje každou minutu?</summary><p data-i18n="faq.a1">iOS i macOS samy rozhodují, jak často se widgety překreslí, aby šetřily baterii. Obvykle je to každých 5–15 minut. Odpočet minut se ale přepočítává i mezi tím a stáří dat vidíš přímo ve widgetu.</p></details>
+    <details><summary data-i18n="faq.q1">Proč se widget neobnovuje každou minutu?</summary><p data-i18n="faq.a1">iOS i macOS samy rozhodují, jak často se widgety překreslí, aby šetřily baterii. Obvykle je to každých 5–15 minut. Na Macu se odpočet minut přepočítává i mezi tím; na iPhonu (Scriptable) je widget jen obrázek, proto ukazuje čas načtení a zpoždění místo odpočtu.</p></details>
     <details><summary data-i18n="faq.q2">Co znamená „bez polohy“?</summary><p data-i18n="faq.a2">Spoj ještě nevyjel z konečné nebo zatím neposlal polohu, takže skutečný čas nikdo nezná. Platí čas z jízdního řádu. Jakmile vyjede, objeví se skutečný čas zeleně (včas) nebo oranžově/červeně (zpoždění).</p></details>
     <details><summary data-i18n="faq.q3">Stojí to něco?</summary><p data-i18n="faq.a3">Ne. Scriptable, Golemio klíč i Tram Widget jsou zdarma. Pokud se ti líbí, můžeš mi koupit kafe.</p></details>
     <details><summary data-i18n="faq.q4">Kam jdou moje data?</summary><p data-i18n="faq.a4">Nikam kromě Golemia. Widget se ptá přímo api.golemio.cz s tvým klíčem, ten zůstává v Klíčence (iPhone) nebo v aplikaci (Mac). Žádný můj server tím neprochází.</p></details>
@@ -437,7 +437,7 @@ open TramWidget.xcodeproj</pre><p data-i18n="mac.s3p">V Xcode stiskni ▶︎. V 
     "ios.s3": "Run it (▶︎) and paste your API key", "ios.s3p": "The key is saved in your iPhone's Keychain. Then pick Change stop in the menu and find your platform.",
     "ios.s4": "Add the widget to your home screen", "ios.s4p": "Touch and hold the home screen → Edit → Add Widget → Scriptable → medium size. Tap the widget and choose Tram Widget under Script.",
     "ios.s5": "More stops?", "ios.s5p": "Add another widget and type a platform ID from step 2 into Parameter, e.g. U906Z3P.",
-    "ios.n1t": "Refreshing:", "ios.n1": "the script asks for a refresh every minute, but iOS decides when it really happens, usually every 5–15 minutes. The top right shows how old the data is.",
+    "ios.n1t": "Refreshing:", "ios.n1": "the script asks for a refresh every minute, but iOS decides when it really happens, usually every 5–15 minutes. The top right shows when the data was loaded, and instead of a minute countdown the widget shows the delay, which doesn't go stale.",
     "ios.n2t": "Tapping the widget", "ios.n2": "opens Scriptable with a fresh preview.",
     "ios.n3t": "Dark mode", "ios.n3": "follows your iPhone. Fix it by changing THEME at the top of the script.",
     "mac.title": "A native macOS widget",
@@ -449,7 +449,7 @@ open TramWidget.xcodeproj</pre><p data-i18n="mac.s3p">V Xcode stiskni ▶︎. V 
     "mac.s3": "Generate the project and run", "mac.s3p": "Press ▶︎ in Xcode. In the app pick your stop and paste the key.",
     "mac.s4": "Add the widget", "mac.s4p": "Right-click the desktop → Edit Widgets → search for Tram Widget.",
     "faq.title": "Questions",
-    "faq.q1": "Why doesn't the widget refresh every minute?", "faq.a1": "iOS and macOS decide how often widgets redraw, to save battery, usually every 5–15 minutes. The minute countdown still updates in between, and the widget shows how old its data is.",
+    "faq.q1": "Why doesn't the widget refresh every minute?", "faq.a1": "iOS and macOS decide how often widgets redraw, to save battery, usually every 5–15 minutes. On Mac the minute countdown still updates in between; on iPhone (Scriptable) the widget is just an image, so it shows the load time and the delay instead of a countdown.",
     "faq.q2": "What does “no GPS yet” mean?", "faq.a2": "The vehicle hasn't left its terminus or hasn't reported its position yet, so nobody knows the real time. The timetable time applies. Once it sets off, the real time appears in green (on time) or orange/red (late).",
     "faq.q3": "Does it cost anything?", "faq.a3": "No. Scriptable, the Golemio key and Tram Widget are all free. If you like it, you can buy me a coffee.",
     "faq.q4": "Where does my data go?", "faq.a4": "Only to Golemio. The widget asks api.golemio.cz directly with your key, which stays in the Keychain (iPhone) or in the app (Mac). Nothing goes through a server of mine.",
@@ -516,22 +516,22 @@ open TramWidget.xcodeproj</pre><p data-i18n="mac.s3p">V Xcode stiskni ▶︎. V 
 
   // ───── Demo widget (sample departures relative to now) ─────
   function hm(d) { return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
-  function demoHTML() {
+  function demoHTML(phone) {
     const now = Date.now(), m = 60000;
     const rows = [["8", 0, "Starý Hloubětín", 3, 2], ["18", 1, "Vozovna Pankrác", 8, 0], ["8", 0, "Starý Hloubětín", 16, null], ["18", 1, "Vozovna Pankrác", 22, null]];
     const body = rows.map(([l, c, dest, inMin, delay]) => {
       const sched = new Date(now + (inMin - (delay || 0)) * m), act = new Date(now + inMin * m);
       const cls = delay == null ? "muted" : delay >= 2 ? "orange" : "green";
       return `<div class="w-row"><span class="badge b${c}">${l}</span><span>${dest}</span>
-        <span class="num s ${delay ? "late" : ""}">${hm(sched)}</span><span class="num a ${cls}">${delay == null ? "–" : hm(act)}</span><span class="num cd">${inMin} min</span></div>`;
+        <span class="num s ${delay ? "late" : ""}">${hm(sched)}</span><span class="num a ${cls}">${delay == null ? "–" : hm(act)}</span><span class="num cd ${phone ? cls : ""}">${phone ? (delay == null ? (lang === "en" ? "no GPS" : "bez polohy") : delay ? "+" + delay : (lang === "en" ? "on time" : "včas")) : inMin + " min"}</span></div>`;
     }).join("");
     return `<svg viewBox="0 0 338 158" width="338" height="158"><rect x="15" y="15" width="308" height="128" rx="9" fill="none" stroke="rgba(60,60,67,.22)"/>
       <g transform="translate(222 15)">${shelterSVG()}</g><g transform="translate(254 15)">${tramSVG()}</g></svg>
-      <div class="content"><div class="w-head"><b>Zelená&nbsp;&nbsp;C</b><span>${lang === "en" ? "just now" : "právě teď"} ↻</span></div>${body}</div>`;
+      <div class="content"><div class="w-head"><b>Zelená&nbsp;&nbsp;C</b><span>${phone ? (lang === "en" ? "updated " : "načteno ") + hm(new Date()) : (lang === "en" ? "just now" : "právě teď")} ↻</span></div>${body}</div>`;
   }
   function renderDemo() {
     document.getElementById("demoWidget").innerHTML = demoHTML();
-    document.getElementById("demoPhone").innerHTML = `<div class="widget" style="box-shadow:none">${demoHTML()}</div>`;
+    document.getElementById("demoPhone").innerHTML = `<div class="widget" style="box-shadow:none">${demoHTML(true)}</div>`;
   }
 
   // ───── Stop picker ─────

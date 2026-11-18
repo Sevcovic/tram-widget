@@ -228,12 +228,12 @@ const df = new DateFormatter();
 df.dateFormat = "H:mm";
 const hm = (ms) => df.string(new Date(ms));
 const actualOf = (d) => d.predicted || d.scheduled;
-const minutesTo = (ms, now) => Math.floor((ms - now) / 60000);
-const countdown = (ms, now) => { const m = minutesTo(ms, now); return m <= 0 ? tr("teď", "now") : m + " min"; };
 const delayMin = (d) => (d.predicted == null ? null : Math.round((d.predicted - d.scheduled) / 60000));
 const delayColor = (d, th) => { const m = delayMin(d); return m == null ? th.muted : m <= 1 ? th.green : m <= 4 ? th.orange : th.red; };
 const delayText = (d) => { const m = delayMin(d); return m == null ? tr("bez polohy", "no GPS yet") : m === 0 ? tr("včas", "on time") : (m > 0 ? "+" : "") + m; };
-const ageText = (ts, now) => { if (!ts) return ""; const m = Math.floor((now - ts) / 60000); return m < 1 ? tr("právě teď", "just now") : tr("před " + m + " min", m + " min ago"); };
+// The widget is a static image that iOS redraws only now and then, so nothing on it may depend on
+// "now" at viewing time: show the fetch time instead of "just now", and delays instead of countdowns.
+const fetchedText = (ts) => (ts ? tr("načteno ", "updated ") + hm(ts) : "");
 const badgeWidth = (line) => Math.max(22, line.length * 7 + 8);
 
 function drawBadge(g, line, x, y, data) {
@@ -255,16 +255,17 @@ function render(family, data, now) {
     const pad = 14;
     g.rect(pad, pad + 3, 3, 12, "#D9262E");
     g.text(title, pad + 8, pad, w - 2 * pad - 8, 13, "semibold", th.ink);
-    g.text((data.error ? "⚠︎ " : "") + ageText(data.fetchedAt, now), pad + 8, pad + 17, w - 2 * pad, 9.5, "regular", data.error ? th.orange : th.muted);
+    g.text((data.error ? "⚠︎ " : "") + fetchedText(data.fetchedAt), pad + 8, pad + 17, w - 2 * pad, 9.5, "regular", data.error ? th.orange : th.muted);
     if (!upcoming.length) {
       g.text(data.error || tr("Žádné odjezdy", "No departures"), pad, h / 2 - 6, w - 2 * pad, 11, "regular", th.muted, "center");
     }
     upcoming.slice(0, 2).forEach((d, i) => {
       const y = 50 + i * 46;
       const bw = drawBadge(g, d.line, pad, y + 4, data);
-      g.text(countdown(actualOf(d), now), pad + bw + 8, y, w - pad - bw - 8 - pad, 20, "big", th.ink);
+      // Big: real departure time (or timetable time while there's no GPS yet). Small: timetable + delay.
+      g.text(hm(actualOf(d)), pad + bw + 8, y, w - pad - bw - 8 - pad, 20, "big", d.predicted != null ? delayColor(d, th) : th.ink);
       g.text(hm(d.scheduled), pad + bw + 8, y + 26, 36, 11, "regular", th.muted);
-      if (d.predicted != null) g.text(delayText(d), pad + bw + 44, y + 26, 60, 11, "semibold", delayColor(d, th));
+      g.text(delayText(d), pad + bw + 44, y + 26, 70, 11, "semibold", delayColor(d, th));
     });
     return g.dc.getImage();
   }
@@ -282,14 +283,15 @@ function render(family, data, now) {
   }
 
   g.text(title, pad, 22, w - 2 * pad - 110, 13, "semibold", th.ink);
-  g.text((data.error ? "⚠︎ " : "") + ageText(data.fetchedAt, now) + "  ↻", w - pad - 110, 24, 110, 10, "regular", data.error ? th.orange : th.muted, "right");
+  g.text((data.error ? "⚠︎ " : "") + fetchedText(data.fetchedAt) + "  ↻", w - pad - 110, 24, 110, 10, "regular", data.error ? th.orange : th.muted, "right");
 
   const rowH = 23, top = 44;
   const rows = Math.max(1, Math.floor((h - inset - 6 - top) / rowH));
   if (!upcoming.length) {
     g.text(data.error || tr("Žádné odjezdy v příštích 90 min", "No departures in the next 90 min"), pad, h / 2, w - 2 * pad, 12, "regular", th.muted, "center");
   }
-  const cdW = 46, actW = 38, schW = 38, gap = 6;
+  // Columns: timetable · real time · delay ("+2", "včas", "bez polohy"). No countdown: it would go stale.
+  const cdW = 62, actW = 38, schW = 38, gap = 6;
   const cdX = w - pad - cdW, actX = cdX - gap - actW, schX = actX - gap - schW;
   upcoming.slice(0, rows).forEach((d, i) => {
     const y = top + i * rowH;
@@ -299,7 +301,7 @@ function render(family, data, now) {
     const dm = delayMin(d);
     if (dm != null && dm !== 0) g.line(schX + schW - 28, y + 10.5, schX + schW, y + 10.5, th.muted, 0.8);
     g.text(d.predicted != null ? hm(d.predicted) : "–", actX, y + 2, actW, 12, "semibold", delayColor(d, th), "right");
-    g.text(countdown(actualOf(d), now), cdX, y + 2, cdW, 12, "semibold", th.ink, "right");
+    g.text(delayText(d), cdX, y + 2.5, cdW, d.predicted == null ? 10.5 : 12, "semibold", delayColor(d, th), "right");
   });
   return g.dc.getImage();
 }
