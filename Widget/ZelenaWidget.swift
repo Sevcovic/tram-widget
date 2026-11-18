@@ -56,10 +56,10 @@ struct LineBadge: View {
     let line: String
     var body: some View {
         Text(line)
-            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .font(.system(size: 11, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
-            .frame(width: 26, height: 22)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color(red: 0.85, green: 0.12, blue: 0.16)))
+            .frame(width: 22, height: 17)
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(red: 0.85, green: 0.12, blue: 0.16)))
     }
 }
 
